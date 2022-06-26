@@ -1,8 +1,10 @@
 import pandas as pd
 import numpy as np
+from config import SEED
 from sklearn.model_selection import train_test_split
 from sklearn.impute import SimpleImputer
-from config import SEED
+from sklearn.preprocessing import PowerTransformer
+import category_encoders as ce
 
 
 class PreProcessor:
@@ -33,7 +35,6 @@ class PreProcessor:
         dataset = pd.read_csv("./datasets/regression/car_prices/car.csv")
 
         # seperate out target data
-
         target = dataset[[str(self.target_name)]]
         dataset = dataset.drop(str(self.target_name), axis=1)
 
@@ -46,7 +47,14 @@ class PreProcessor:
         x_train_cat, x_test_cat, x_train_num, x_test_num, y_train, y_test =\
             train_test_split(dataset_cat, dataset_num, target, random_state=SEED)
 
-        x_train_df, x_test_df = self.process_imputation(x_train_cat, x_test_cat, x_train_num, x_test_num)    
+        x_train_cat, x_test_cat, x_train_num, x_test_num =\
+            self.process_imputation(x_train_cat, x_test_cat, x_train_num, x_test_num)
+
+        x_train_num, x_test_num = self.process_num(x_train_num, x_test_num)
+        x_train_cat, x_test_cat = self.process_cat(x_train_cat, x_test_cat, y_train)
+
+        x_train_df, x_test_df =\
+            self.process_merge(x_train_num, x_test_num, x_train_cat, x_test_cat)
 
         return x_train_df, x_test_df, y_train, y_test
 
@@ -70,6 +78,47 @@ class PreProcessor:
         x_train_num = imputer_num.fit_transform(x_train_num)
         x_test_num = imputer_num.transform(x_test_num)
 
+        return x_train_cat, x_test_cat, x_train_num, x_test_num
+        
+    
+    def process_num(self, x_train_num, x_test_num):
+        # Inside process skew we are already doing scaling by using
+        # Standardize = True, we can skip process scaling
+        # process_scaling is just kept for descriptive purposes
+        x_train_num, x_test_num = self.process_skew(x_train_num, x_test_num)
+        x_train_num, x_test_num = self.process_scaling(x_train_num, x_test_num)
+
+        return x_train_num, x_test_num
+
+    def process_cat(self, x_train_cat, x_test_cat, y_train):
+        # x_train_cat, x_test_cat = self.process_encoding(x_train_cat, x_test_cat, y_train)
+
+        return x_train_cat, x_test_cat
+
+    def process_skew(self, x_train_num, x_test_num):
+        yeo_john_pt = PowerTransformer(method='yeo-johnson', standardize=True)
+        x_train_num = yeo_john_pt.fit_transform(x_train_num)
+        x_test_num = yeo_john_pt.transform(x_test_num)
+
+        return x_train_num, x_test_num
+
+    def process_scaling(self, x_train_num, x_test_num):
+        return x_train_num, x_test_num
+
+    def process_encoding(self, x_train_cat, x_test_cat, y_train):
+        tenc = ce.TargetEncoder()
+        x_train_cat = pd.DataFrame(x_train_cat)
+        x_test_cat = pd.DataFrame(x_test_cat)
+
+        for col in x_train_cat.columns:
+            x_train_cat[col] = tenc.fit_transform(x_train_cat[col], y_train.reset_index(drop=True, inplace=True))
+            x_test_cat[col] = tenc.transform(x_test_cat[col])
+
+        print("TARGET ENCODE: ", type(x_train_cat))
+
+        return x_train_cat.values, x_test_cat.values
+
+    def process_merge(self, x_train_num, x_test_num, x_train_cat, x_test_cat):
         # combining categorical and numerical features in train, test
         x_train = np.hstack([x_train_cat, x_train_num])
         x_test = np.hstack([x_test_cat, x_test_num])
@@ -92,12 +141,3 @@ class PreProcessor:
             x_test_df[col] = x_test_df[col].astype('category')
 
         return x_train_df, x_test_df
-    
-    def process_skew(self):
-        pass
-
-    def process_encoding(self):
-        pass
-
-    def process_scaling(self):
-        pass
