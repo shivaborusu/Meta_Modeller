@@ -19,10 +19,7 @@ class PreProcessor:
     def pre_processor(self):
         dataset = self.dataset.copy()
 
-        # rename target for consistency
-        #dataset = dataset.rename(columns={self.target_name:"target"})
-        dataset = dataset[dataset[self.target_name].isnull() == False]
-        dataset = dataset.replace("?", np.NaN)
+        dataset = self.process_trivial_cleanup(dataset)
 
         # These intermediate saving is needed because 
         # the initial dataset has '?' symbol in numerical column
@@ -59,6 +56,16 @@ class PreProcessor:
         return x_train_df, x_test_df, y_train, y_test
 
 
+    def process_trivial_cleanup(self, dataset):
+        # rename target for consistency
+        #dataset = dataset.rename(columns={self.target_name:"target"})
+        dataset = dataset.replace("?", np.NaN)
+        dataset = dataset.replace(np.inf, np.NaN)
+        dataset = dataset[dataset[self.target_name].isnull() == False]
+
+        return dataset
+
+
     def process_cat_num(self, dataset):
         cat_cols = dataset.select_dtypes(include='object').columns
         num_cols = dataset.select_dtypes(exclude='object').columns
@@ -91,7 +98,7 @@ class PreProcessor:
         return x_train_num, x_test_num
 
     def process_cat(self, x_train_cat, x_test_cat, y_train):
-        # x_train_cat, x_test_cat = self.process_encoding(x_train_cat, x_test_cat, y_train)
+        x_train_cat, x_test_cat = self.process_encoding(x_train_cat, x_test_cat, y_train)
 
         return x_train_cat, x_test_cat
 
@@ -106,17 +113,12 @@ class PreProcessor:
         return x_train_num, x_test_num
 
     def process_encoding(self, x_train_cat, x_test_cat, y_train):
-        tenc = ce.TargetEncoder()
-        x_train_cat = pd.DataFrame(x_train_cat)
-        x_test_cat = pd.DataFrame(x_test_cat)
+        tenc = ce.TargetEncoder(min_samples_leaf=20, smoothing=10)
 
-        for col in x_train_cat.columns:
-            x_train_cat[col] = tenc.fit_transform(x_train_cat[col], y_train.reset_index(drop=True, inplace=True))
-            x_test_cat[col] = tenc.transform(x_test_cat[col])
+        x_train_cat = tenc.fit_transform(x_train_cat, y_train.reset_index(drop=True))
+        x_test_cat = tenc.transform(x_test_cat)
 
-        print("TARGET ENCODE: ", type(x_train_cat))
-
-        return x_train_cat.values, x_test_cat.values
+        return x_train_cat, x_test_cat
 
     def process_merge(self, x_train_num, x_test_num, x_train_cat, x_test_cat):
         # combining categorical and numerical features in train, test
