@@ -1,6 +1,6 @@
 import pandas as pd
 import numpy as np
-from config import SEED
+from config import SEED, DATA_SET_PATH, MODEL_PICKLE_PATH
 from sklearn.model_selection import train_test_split
 from sklearn.impute import SimpleImputer
 from sklearn.preprocessing import PowerTransformer
@@ -28,8 +28,8 @@ class PreProcessor:
         # so saving the dataframe to csv and reloading it will make the column 
         # numrical type
         # this saving and reloading converting numerical type columns to string type
-        dataset.to_csv("/Users/shivaborusu/Development/Meta_Modeller/datasets/regression/car_prices/car.csv", index=False)
-        dataset = pd.read_csv("/Users/shivaborusu/Development/Meta_Modeller/datasets/regression/car_prices/car.csv")
+        dataset.to_csv(DATA_SET_PATH + "regression/car_prices/car.csv", index=False)
+        dataset = pd.read_csv(DATA_SET_PATH + "regression/car_prices/car.csv")
 
         # seperate out target data
         target = dataset[[str(self.target_name)]]
@@ -55,7 +55,7 @@ class PreProcessor:
 
 
         # saving x_test_df to verify it in flask UI
-        x_test_df.to_csv("/Users/shivaborusu/Development/Meta_Modeller/model_pickles/x_test_df.csv", index=False, header=False)
+        x_test_df.to_csv(MODEL_PICKLE_PATH + "x_test_df.csv", index=False, header=False)
 
         return x_train_df, x_test_df, y_train, y_test
 
@@ -132,13 +132,13 @@ class PreProcessor:
         # writing to CSV and reloading from CSV is performed 
         # because numpy columns are read as all 'object' type
         x_train_df = pd.DataFrame(x_train, dtype=None)
-        x_train_df.to_csv("/Users/shivaborusu/Development/Meta_Modeller/datasets/regression/car_prices/x_train_df.csv", index=False)
-        x_train_df = pd.read_csv("/Users/shivaborusu/Development/Meta_Modeller/datasets/regression/car_prices/x_train_df.csv")
+        x_train_df.to_csv(DATA_SET_PATH + "regression/car_prices/x_train_df.csv", index=False)
+        x_train_df = pd.read_csv(DATA_SET_PATH + "regression/car_prices/x_train_df.csv")
 
 
         x_test_df = pd.DataFrame(x_test, dtype=None)
-        x_test_df.to_csv("/Users/shivaborusu/Development/Meta_Modeller/datasets/regression/car_prices/x_test_df.csv", index=False)
-        x_test_df = pd.read_csv("/Users/shivaborusu/Development/Meta_Modeller/datasets/regression/car_prices/x_test_df.csv")
+        x_test_df.to_csv(DATA_SET_PATH + "regression/car_prices/x_test_df.csv", index=False)
+        x_test_df = pd.read_csv(DATA_SET_PATH + "regression/car_prices/x_test_df.csv")
 
         # this step is needed because 'object' is not recorgnized by LGBM
         cat_cols = x_train_df.select_dtypes(include='object').columns

@@ -5,7 +5,7 @@ from sklearn.neighbors import KNeighborsClassifier, KNeighborsRegressor
 from sklearn.metrics import mean_squared_error, r2_score
 import pandas as pd
 import numpy as np
-from config import SEED
+from config import SEED, MODEL_PICKLE_PATH
 from hyper_tuner import HyperTuner
 import pickle as pkl
 
@@ -140,7 +140,7 @@ class Modeller:
                 preds = model.predict(self.x_test)
                 score = r2_score(self.y_test, preds)
                 metrics.update({model:score})
-                with open("/Users/shivaborusu/Development/Meta_Modeller/model_pickles/model_"+str(idx)+".pkl", "wb") as handle:
+                with open(MODEL_PICKLE_PATH + "model_"+str(idx)+".pkl", "wb") as handle:
                     pkl.dump(model, handle)
             
         return metrics

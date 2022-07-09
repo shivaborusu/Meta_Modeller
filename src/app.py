@@ -3,6 +3,8 @@ from flasgger import Swagger
 from werkzeug.utils import secure_filename
 import pickle as pkl
 import pandas as pd
+import sys
+from config import MODEL_PICKLE_PATH
 
 app = Flask(__name__)
 Swagger(app)
@@ -44,7 +46,7 @@ def predict():
     data = pd.read_csv(file.filename, header=0)
 
     try:
-        with open("/Users/shivaborusu/Development/Meta_Modeller/model_pickles/"+model+".pkl", "rb") as model_file:
+        with open(MODEL_PICKLE_PATH + model + ".pkl", "rb") as model_file:
             model = pkl.load(model_file)
     except FileNotFoundError:
         response = make_response("SPECIFIED MODEL PICKLE NOT FOUND!!!", 400)
@@ -52,7 +54,7 @@ def predict():
 
     model_prediction = model.predict(data)
 
-    output_file_name = "/Users/shivaborusu/Development/Meta_Modeller/model_pickles/model_prediction.csv"
+    output_file_name = MODEL_PICKLE_PATH + "model_prediction.csv"
     preds = pd.DataFrame(model_prediction, columns=['target'])
     output = pd.concat([data, preds], axis=1)
     output.to_csv(output_file_name, index=False, header=True)
