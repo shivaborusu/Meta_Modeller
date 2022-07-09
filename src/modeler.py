@@ -7,7 +7,7 @@ import pandas as pd
 import numpy as np
 from config import SEED
 from hyper_tuner import HyperTuner
-
+import pickle as pkl
 
 class Modeller:
     def __init__(self, x_train, y_train, x_test, y_test, model_type):
@@ -136,9 +136,11 @@ class Modeller:
     def choose_best_model(self, mod_list):
         metrics = {}
         if self.model_type =='regressor':
-            for model in mod_list:
+            for idx, model in enumerate(mod_list):
                 preds = model.predict(self.x_test)
                 score = r2_score(self.y_test, preds)
                 metrics.update({model:score})
+                with open("/Users/shivaborusu/Development/Meta_Modeller/model_pickles/model_"+str(idx)+".pkl", "wb") as handle:
+                    pkl.dump(model, handle)
             
         return metrics

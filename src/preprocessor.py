@@ -53,6 +53,10 @@ class PreProcessor:
         x_train_df, x_test_df =\
             self.process_merge(x_train_num, x_test_num, x_train_cat, x_test_cat)
 
+
+        # saving x_test_df to verify it in flask UI
+        x_test_df.to_csv("/Users/shivaborusu/Development/Meta_Modeller/model_pickles/x_test_df.csv", index=False, header=False)
+
         return x_train_df, x_test_df, y_train, y_test
 
 
