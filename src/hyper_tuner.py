@@ -9,7 +9,7 @@ class HyperTuner:
         pass
 
     def get_best_model(self, model, param_grid, x_train, y_train):
-        model = RandomizedSearchCV(estimator = model, param_distributions=param_grid, random_state=SEED, cv=5)
+        model = RandomizedSearchCV(estimator = model, param_distributions=param_grid, random_state=SEED, cv=5, error_score='raise')
         search = model.fit(x_train, y_train)
 
         print("BEST_MODEL:   ", search.best_estimator_)
@@ -21,3 +21,5 @@ class HyperTuner:
 
     def run_cross_validation(self):
         pass
+
+

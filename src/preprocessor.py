@@ -14,7 +14,6 @@ class PreProcessor:
         self.model_type = model_type
         self.cat_cols = None
         self.num_cols = None
-        self.seed = np.random.randint(1,100)
 
     def pre_processor(self):
         dataset = self.dataset.copy()
@@ -55,7 +54,7 @@ class PreProcessor:
 
 
         # saving x_test_df to verify it in flask UI
-        x_test_df.to_csv(MODEL_PICKLE_PATH + "x_test_df.csv", index=False, header=False)
+        x_test_df.to_csv(MODEL_PICKLE_PATH + "x_test_df.csv", index=False, header=True)
 
         return x_train_df, x_test_df, y_train, y_test
 
@@ -65,7 +64,7 @@ class PreProcessor:
         #dataset = dataset.rename(columns={self.target_name:"target"})
         dataset = dataset.replace("?", np.NaN)
         dataset = dataset.replace(np.inf, np.NaN)
-        dataset = dataset[dataset[self.target_name].isnull() == False]
+        dataset = dataset[dataset[self.target_name].isnull() == False].reset_index(drop=True)
 
         return dataset
 
@@ -80,6 +79,9 @@ class PreProcessor:
 
 
     def process_imputation(self, x_train_cat, x_test_cat, x_train_num, x_test_num):
+        # implement MICE imputation
+        # or other advanced imputation techniques
+
         imputer_cat = SimpleImputer(strategy='constant', fill_value='NA')
         imputer_num = SimpleImputer(strategy='median')
 

@@ -23,6 +23,7 @@ class Modeller:
         # implement feature selection code here
         # this should return selected features list as well
 
+        # best_features_list = self.get_important_features(self.x_train, self.y_train)
 
 
         #build model 1 - LGBM
@@ -65,6 +66,20 @@ class Modeller:
         else:
             model = LGBMClassifier(random_state=SEED)
 
+            # as of now implement random grid for hyper-param tuning
+            param_grid = {
+                'boosting_type': ['gbdt', 'dart'],
+                'num_leaves': [7, 14, 21, 28, 31, 50],
+                'learning_rate': [0.1, 0.03, 0.003],
+                'max_depth': [-1, 3, 5],
+                'n_estimators': [50, 100, 200, 500],
+                'class_weight': ['balanced', None]
+                }
+
+            best_model, best_params = self.ht.get_best_model(model, param_grid, x_train, np.ravel(y_train))
+
+            print("BEST_PARAMS LGBM: ", best_params)
+
         return best_model, best_params
 
 
@@ -89,6 +104,17 @@ class Modeller:
 
         else:
             model = KNeighborsClassifier()
+
+            # as of now implement random grid for hyper-param tuning
+            param_grid = {
+                'n_neighbors': [3, 5, 8],
+                'weights': ['uniform', 'distance'],
+                'algorithm': ['auto', 'ball_tree', 'kd_tree', 'brute']
+                }
+
+            best_model, best_params = self.ht.get_best_model(model, param_grid, x_train, np.ravel(y_train))
+
+            print("BEST_PARAMS KNN: ", best_params)
  
         return best_model, best_params
 
@@ -120,8 +146,9 @@ class Modeller:
             # as of now implement random grid for hyper-param tuning
             param_grid = {
                 'criterion' : ['squared_error','poisson'],
-                'max_depth': [-1, 3, 5],
-                'n_estimators': [50, 100, 200, 500]
+                'max_depth': [3, 5],
+                'n_estimators': [50, 100, 200, 500],
+                'min_samples_split' : [2]
                 }
 
             best_model, best_params = self.ht.get_best_model(model, param_grid, x_train, np.ravel(y_train))
@@ -129,6 +156,17 @@ class Modeller:
             print("BEST_PARAMS RF: ", best_params)
         else:
             model = RandomForestClassifier(random_state=SEED)
+
+            # as of now implement random grid for hyper-param tuning
+            param_grid = {
+                'criterion' : ['gini','entropy'],
+                'max_depth':  [3, 5],
+                'n_estimators': [50, 100, 200, 500]
+                }
+
+            best_model, best_params = self.ht.get_best_model(model, param_grid, x_train, np.ravel(y_train))
+
+            print("BEST_PARAMS RF: ", best_params)
 
         return best_model, best_params
 
@@ -139,7 +177,7 @@ class Modeller:
             for idx, model in enumerate(mod_list):
                 preds = model.predict(self.x_test)
                 score = r2_score(self.y_test, preds)
-                metrics.update({model:score})
+                metrics.update({"model_"+str(idx):{model:score}})
                 with open(MODEL_PICKLE_PATH + "model_"+str(idx)+".pkl", "wb") as handle:
                     pkl.dump(model, handle)
             
