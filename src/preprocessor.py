@@ -8,14 +8,39 @@ import category_encoders as ce
 
 
 class PreProcessor:
+    """
+    The PreProcessor class follows the guidance of CRISP DM 
+    to clean the data suitable to be consumed by any Machine Learning Model
+
+    This class currently deals with both Numerical and Categorical 
+    data cleaning.
+
+    The method mentioned here are a sequecnce of steps which takes
+    an intitial data frame and outputs it as a feature space with obeservations
+    
+    """
     def __init__(self, dataset, model_type, target_name="target") -> None:
+        """
+        Class constructor
+
+        Inputs:
+        dataset: raw dataset input
+        model_type: species the model is a regressor or classifier
+        target_name: name of the target in feature space, defaults to "target"
+
+        """
         self.dataset = dataset
         self.target_name = target_name
         self.model_type = model_type
         self.cat_cols = None
         self.num_cols = None
 
-    def pre_processor(self):
+    def pre_processor(self):  
+        """
+        The orchestrator method which ties together all the other member
+        methods inside the class. This method demonstrates a pipeline to handle all the
+        preprocessing tasks required for a machine learning model building
+        """
         dataset = self.dataset.copy()
 
         dataset = self.process_trivial_cleanup(dataset)
@@ -53,13 +78,27 @@ class PreProcessor:
             self.process_merge(x_train_num, x_test_num, x_train_cat, x_test_cat)
 
 
-        # saving x_test_df to verify it in flask UI
-        x_test_df.to_csv(MODEL_PICKLE_PATH + "x_test_df.csv", index=False, header=True)
+        # assigning original column names
+        num_cat_cols = dataset_num.columns.tolist() + dataset_cat.columns.tolist()
+        x_train_df.columns = num_cat_cols
+        x_test_df.columns = num_cat_cols
 
-        return x_train_df, x_test_df, y_train, y_test
+        # saving x_test_df to verify it in flask UI
+        x_train_df.to_csv(MODEL_PICKLE_PATH + "pp_train.csv", index=False, header=True)
+        x_test_df.to_csv(MODEL_PICKLE_PATH + "pp_test.csv", index=False, header=True)
+
+        return x_train_df, x_test_df, y_train, y_test, num_cat_cols
 
 
     def process_trivial_cleanup(self, dataset):
+        """
+        This method handles dataset specific cleaning. This
+        method can be further modified in order to handle trivial issues corresponding to
+        different datasets. For example, in one of the datasets the missing values are
+        represented with a '?', this method replaces this '?' with a 'np.NaN'. This helps to
+        get the type of the column correctly which further helps in imputation/handling
+        missing values.
+        """
         # rename target for consistency
         #dataset = dataset.rename(columns={self.target_name:"target"})
         dataset = dataset.replace("?", np.NaN)
@@ -70,6 +109,9 @@ class PreProcessor:
 
 
     def process_cat_num(self, dataset):
+        """
+        Responsible for separating numerical and categorical columns.
+        """
         cat_cols = dataset.select_dtypes(include='object').columns
         num_cols = dataset.select_dtypes(exclude='object').columns
         dataset_cat = dataset[cat_cols]
@@ -79,6 +121,10 @@ class PreProcessor:
 
 
     def process_imputation(self, x_train_cat, x_test_cat, x_train_num, x_test_num):
+        """
+        Responsible for handling missing values. This can handle
+        both numerical and categorical columns
+        """
         # implement MICE imputation
         # or other advanced imputation techniques
 
@@ -95,6 +141,10 @@ class PreProcessor:
         
     
     def process_num(self, x_train_num, x_test_num):
+        """
+        Responsible for handling skew and normalisation of numerical
+        features. Which orchestrates process_skew and process_scaling methods
+        """
         # Inside process skew we are already doing scaling by using
         # Standardize = True, we can skip process scaling
         # process_scaling is just kept for descriptive purposes
@@ -104,11 +154,19 @@ class PreProcessor:
         return x_train_num, x_test_num
 
     def process_cat(self, x_train_cat, x_test_cat, y_train):
+        """
+        Responsible for handling categorical features. Orchestrates
+        process_encoding to encode categorical features. This can be extended to support
+        further categorical features processing
+        """
         x_train_cat, x_test_cat = self.process_encoding(x_train_cat, x_test_cat, y_train)
 
         return x_train_cat, x_test_cat
 
     def process_skew(self, x_train_num, x_test_num):
+        """
+        Handles the data skew related to numerical features
+        """
         yeo_john_pt = PowerTransformer(method='yeo-johnson', standardize=True)
         x_train_num = yeo_john_pt.fit_transform(x_train_num)
         x_test_num = yeo_john_pt.transform(x_test_num)
@@ -116,6 +174,10 @@ class PreProcessor:
         return x_train_num, x_test_num
 
     def process_scaling(self, x_train_num, x_test_num):
+        """
+        Scaling is handled in process_skew by setting the parameter
+        standardize=True
+        """
         return x_train_num, x_test_num
 
     def process_encoding(self, x_train_cat, x_test_cat, y_train):
@@ -127,6 +189,10 @@ class PreProcessor:
         return x_train_cat, x_test_cat
 
     def process_merge(self, x_train_num, x_test_num, x_train_cat, x_test_cat):
+        """
+        Responsible for stitching the processed numerical and categorical
+        features together
+        """
         # combining categorical and numerical features in train, test
         x_train = np.hstack([x_train_cat, x_train_num])
         x_test = np.hstack([x_test_cat, x_test_num])
