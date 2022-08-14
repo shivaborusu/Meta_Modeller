@@ -1,79 +1,112 @@
-from hyperopt import fmin, tpe, hp, STATUS_OK
+import pandas as pd
+import numpy as np
+from hyperopt import fmin, tpe, hp, STATUS_OK, Trials, space_eval
+from config import SEED, DATA_SET_PATH, MODEL_PICKLE_PATH
+from sklearn.model_selection import cross_val_score
+from lightgbm import LGBMRegressor, LGBMClassifier
+from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
+from sklearn.linear_model import LinearRegression, LogisticRegression, Ridge, RidgeClassifier
+from sklearn.neighbors import KNeighborsClassifier, KNeighborsRegressor
+from sklearn.svm import SVC, SVR
+from sklearn.feature_selection import SelectFromModel, RFECV
+from sklearn.metrics import mean_squared_error, r2_score
+import pandas as pd
+import numpy as np
+from config import SEED, MODEL_PICKLE_PATH
+import pickle as pkl
+import logging
 
 
-def objective(args):
-    
-    # Initialize model pipeline
-    pipe = Pipeline(steps=[('model', args['model'])])
-    
-    pipe.set_params(**args['params']) # Model parameters will be set here
-    
-    # Cross Validation Score. Note the transformer.fit_transform for X_train. 
-    
-    score = cross_val_score(pipe, transformer.fit_transform(X_train), y_train, cv=5, n_jobs=-1, error_score=0.99)
-    print(f'Model Name: {args['model']}: ', score)
-          
-    # Since we have to minimize the score, we return 1- score.
-    return {'loss': 1 - np.median(score), 'status': STATUS_OK}
+model_type = 'regresson'
 
-
-# Defining Search Space
-space = hp.choice('classifiers', [
+space_reg = hp.choice('regressors', [
     {
-    'model':KNeighborsClassifier(),
-    'params':{
-        'model__n_neighbors': hp.choice('knc.n_neighbors', range(2,10)),
-        'model__algorithm': hp.choice('knc.algorithm',
-                                      ['auto', 'ball_tree', 'kd_tree']),
-        'model__metric': hp.choice('knc.metric', ['chebyshev', 'minkowski'])
-    }
+        'model': LGBMRegressor(random_state=SEED),
+        'params': {
+            'num_leaves': hp.choice('num_leaves', [7, 14, 21, 28, 31, 50]),
+            'learning_rate': hp.choice('learning_rate', [0.1, 0.03, 0.003]),
+            'max_depth': hp.choice('max_depth', [-1, 3, 5]),
+            'n_estimators': hp.choice('n_estimators', [50, 100, 200, 500])
+        },
+        'metric' : "r2"
     },
     {
-    'model':SVC(),
-    'params':{
-        'model__C': hp.choice('C', np.arange(0.005,1.0,0.01)),
-        'model__kernel': hp.choice('kernel',['linear', 'rbf', 'sigmoid']),
-        'model__degree':hp.choice('degree',[2,3,4]),
-        'model__gamma': hp.uniform('gamma',0.001,1000)
-    }
-    },
-
-    {
-    'model': LogisticRegression(verbose=0),
-    'params': {
-        'model__penalty': hp.choice('lr.penalty', ['none', 'l2']),
-        'model__C': hp.choice('lr.C', np.arange(0.005,1.0,0.01))
-
-    }
-    },
-        {
-    'model': XGBClassifier(eval_metric='logloss', verbosity=0),
-    'params': {
-        'model__max_depth' : hp.choice('xgb.max_depth',
-                                       range(5, 30, 1)),
-        'model__learning_rate' : hp.quniform('xgb.learning_rate',
-                                             0.01, 0.5, 0.01),
-        'model__n_estimators' : hp.choice('xgb.n_estimators',
-                                          range(5, 50, 1)),
-        'model__reg_lambda' : hp.uniform ('xgb.reg_lambda', 0,1),
-        'model__reg_alpha' : hp.uniform ('xgb.reg_alpha', 0,1)
-    }
+        'model': KNeighborsRegressor(),
+        'params': {
+            'n_neighbors': hp.choice('n_neighbors', [3, 5, 8]),
+            'weights': hp.choice('weights', ['uniform', 'distance']),
+            'algorithm': hp.choice('algorithm', ['auto', 'ball_tree', 'kd_tree', 'brute'])
+        },
+        'metric' : "r2"
     },
     {
-        'model': QuadraticDiscriminantAnalysis(), # Default params
-        'params': {}
+        'model': LinearRegression(),
+        'params': {},
+        'metric' : "r2"
+    },
+    {
+        'model': SVR(),
+        'params': {
+            'kernel': hp.choice('kernel', ['linear', 'poly', 'rbf', 'sigmoid']),
+            'degree': hp.choice('degree', [2,3,4]),
+            'C': hp.choice('C', [1, 2])
+        },
+        'metric': "r2"
+    },
+    {
+        'model': Ridge(),
+        'params': {
+            'alpha': hp.choice('alpha', [0.2, 0.4, 0.6, 1]),
+            'solver': hp.choice('solver', ['auto', 'svd', 'cholesky', 'lsqr', 'sparse_cg', 'sag', 'saga', 'lbfgs']),
+            'random_state': hp.choice('random_state', [SEED, None])
+        },
+        'metric': "r2"
     }
-])
+    # due to this issue RandomForest is avoided 
+    # https://github.com/hyperopt/hyperopt/issues/823
+    # {
+    #     'model': RandomForestRegressor(random_state=SEED),
+    #     'params': {
+    #         'criterion': hp.choice('criterion', ['squared_error','poisson']),
+    #         'max_depth': hp.choice('max_depth', [3, 5]),
+    #         'n_estimators': hp.choice('n_estimators', [50, 100, 200, 500])
+    #     }
+    # },
+    ])
 
 
-# Hyperopts Trials() records all the model and run artifacts.
+space_clf = {}
+
+def hyperparameter_tuning(space):
+    x_train = pd.read_csv(MODEL_PICKLE_PATH + "model_train_x_df.csv", header='infer')
+    y_train = pd.read_csv(MODEL_PICKLE_PATH + "model_train_y_df.csv", header='infer')
+
+    model = space['model']
+    reg = model.set_params(**space['params'])
+    metric = space['metric']
+
+    acc = cross_val_score(reg, x_train, np.ravel(y_train), scoring=metric).mean()
+    return {"loss": -acc, "status": STATUS_OK}
+
+
+# Initialize trials object
 trials = Trials()
 
-# Fmin will call the objective funbction with selective param set. 
-# The choice of algorithm will narrow the searchspace.
+if model_type == 'regresson':
+    space = space_reg
+else:
+    space = space_clf
 
-best_classifier = fmin(objective, space, algo=tpe.suggest,
-                       max_evals=50, trials=trials)
+best = fmin(
+    fn=hyperparameter_tuning,
+    space = space, 
+    algo=tpe.suggest, 
+    max_evals=10,
+    trials=trials,
+    return_argmin=True
+)
+
+print("Best: {}".format(best))
 
 # Best_params of the best model
-best_params = space_eval(space, best_classifier)
+print(space_eval(space_reg, best))

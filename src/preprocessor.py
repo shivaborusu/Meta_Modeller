@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 from config import SEED, DATA_SET_PATH, MODEL_PICKLE_PATH
 from sklearn.model_selection import train_test_split
-from sklearn.impute import SimpleImputer
+from sklearn.impute import SimpleImputer, KNNImputer
 from sklearn.preprocessing import PowerTransformer
 import category_encoders as ce
 
@@ -74,6 +74,10 @@ class PreProcessor:
         x_train_num, x_test_num = self.process_num(x_train_num, x_test_num)
         x_train_cat, x_test_cat = self.process_cat(x_train_cat, x_test_cat, y_train)
 
+        # these lines are inserted here to test KNN imputation strategy on encoded categorical variables
+        # x_train_cat, x_test_cat, x_train_num, x_test_num =\
+        #    self.process_imputation_2(x_train_cat, x_test_cat, x_train_num, x_test_num)
+
         x_train_df, x_test_df =\
             self.process_merge(x_train_num, x_test_num, x_train_cat, x_test_cat)
 
@@ -84,8 +88,8 @@ class PreProcessor:
         x_test_df.columns = num_cat_cols
 
         # saving x_test_df to verify it in flask UI
-        x_train_df.to_csv(MODEL_PICKLE_PATH + "pp_train.csv", index=False, header=True)
-        x_test_df.to_csv(MODEL_PICKLE_PATH + "pp_test.csv", index=False, header=True)
+        x_train_df.to_csv(MODEL_PICKLE_PATH + "pp_train_df.csv", index=False, header=True)
+        x_test_df.to_csv(MODEL_PICKLE_PATH + "pp_test_df.csv", index=False, header=True)
 
         return x_train_df, x_test_df, y_train, y_test, num_cat_cols
 
@@ -120,13 +124,11 @@ class PreProcessor:
         return dataset_cat, dataset_num
 
 
-    def process_imputation(self, x_train_cat, x_test_cat, x_train_num, x_test_num):
+    def process_imputation_simple(self, x_train_cat, x_test_cat, x_train_num, x_test_num):
         """
         Responsible for handling missing values. This can handle
         both numerical and categorical columns
         """
-        # implement MICE imputation
-        # or other advanced imputation techniques
 
         imputer_cat = SimpleImputer(strategy='constant', fill_value='NA')
         imputer_num = SimpleImputer(strategy='median')
@@ -138,6 +140,24 @@ class PreProcessor:
         x_test_num = imputer_num.transform(x_test_num)
 
         return x_train_cat, x_test_cat, x_train_num, x_test_num
+
+
+    def process_imputation(self, x_train_cat, x_test_cat, x_train_num, x_test_num):
+        """
+        Responsible for handling missing values. This can handle
+        both numerical and categorical columns
+        """
+
+        imputer_cat = SimpleImputer(strategy='constant', fill_value='NA')
+        imputer_num = KNNImputer()
+
+        x_train_cat = imputer_cat.fit_transform(x_train_cat)
+        x_test_cat = imputer_cat.transform(x_test_cat)
+
+        x_train_num = imputer_num.fit_transform(x_train_num)
+        x_test_num = imputer_num.transform(x_test_num)
+
+        return x_train_cat, x_test_cat, x_train_num, x_test_num    
         
     
     def process_num(self, x_train_num, x_test_num):

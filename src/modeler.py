@@ -1,7 +1,8 @@
 from lightgbm import LGBMRegressor, LGBMClassifier
 from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
-from sklearn.linear_model import LinearRegression, LogisticRegression
+from sklearn.linear_model import LinearRegression, LogisticRegression, Ridge, RidgeClassifier
 from sklearn.neighbors import KNeighborsClassifier, KNeighborsRegressor
+from sklearn.svm import SVC, SVR
 from sklearn.feature_selection import SelectFromModel, RFECV
 from sklearn.metrics import mean_squared_error, r2_score
 import pandas as pd
@@ -50,20 +51,32 @@ class Modeller:
             x_train = x_train[selected_feat_list]
             self.x_test = self.x_test[selected_feat_list]
 
+        # save x_train, x_test here , saving x_test_df to verify it in flask UI
+        # The same datatsets can also be used to train hyperopt
+        x_train.to_csv(MODEL_PICKLE_PATH + "model_train_x_df.csv", index=False, header=True)
+        y_train.to_csv(MODEL_PICKLE_PATH + "model_train_y_df.csv", index=False, header=True)
+        self.x_test.to_csv(MODEL_PICKLE_PATH + "model_test_x_df.csv", index=False, header=True)
+
 
         #build model 1 - LGBM
         model_1, best_params = self.build_model_1(x_train, y_train, self.model_type)
 
-        #build model 1
+        #build model 2 - KNN
         model_2, best_params = self.build_model_2(x_train, y_train, self.model_type)
 
-        #build model 1
+        #build model 3 - Linear/Logistic
         model_3, best_params = self.build_model_3(x_train, y_train, self.model_type)
 
-        #build model 1
+        #build model 4 - RF
         model_4, best_params = self.build_model_4(x_train, y_train, self.model_type)
 
-        best_model = self.choose_best_model([model_1, model_2, model_3, model_4])
+        #build model 5 - SVM
+        model_5, best_params = self.build_model_5(x_train, y_train, self.model_type)
+
+        #build model 6 - Ridge
+        model_6, best_params = self.build_model_6(x_train, y_train, self.model_type)
+
+        best_model = self.choose_best_model([model_1, model_2, model_3, model_4, model_5, model_6])
 
         return best_model
 
@@ -168,7 +181,9 @@ class Modeller:
         """
         if model_type =='regressor':
             model = LinearRegression()
-            param_grid = {'fit_intercept': [True, False]}
+            param_grid = {
+            'fit_intercept': [True, False]
+            }
             #best_model.fit(x_train, np.ravel(y_train))
             best_model, best_params = self.ht.get_best_model(model, param_grid, x_train, np.ravel(y_train))
 
@@ -212,6 +227,73 @@ class Modeller:
                 'criterion' : ['gini','entropy'],
                 'max_depth':  [3, 5],
                 'n_estimators': [50, 100, 200, 500]
+                }
+
+            best_model, best_params = self.ht.get_best_model(model, param_grid, x_train, np.ravel(y_train))
+
+        return best_model, best_params
+
+
+    def build_model_5(self, x_train, y_train, model_type):
+        """
+        This is for Support Vector Machine Regressor and Classifier
+
+        """
+        if model_type =='regressor':
+            model = SVR()
+
+            # as of now implement random grid for hyper-param tuning
+            param_grid = {
+                'kernel': ['linear', 'poly', 'rbf', 'sigmoid'],
+                'degree': [2,3,4],
+                'C': [1,2]
+                }
+
+            best_model, best_params = self.ht.get_best_model(model, param_grid, x_train, np.ravel(y_train))
+
+        else:
+            model = SVC()
+
+            # as of now implement random grid for hyper-param tuning
+            param_grid = {
+                'kernel': ['linear', 'poly', 'rbf', 'sigmoid'],
+                'degree': [2,3,4],
+                'C': [1,2],
+                'class_weight': ['balanced', None],
+                'random_state': [SEED, None]
+                }
+
+            best_model, best_params = self.ht.get_best_model(model, param_grid, x_train, np.ravel(y_train))
+
+        return best_model, best_params
+
+
+    def build_model_6(self, x_train, y_train, model_type):
+        """
+        This is for Ridge Regressor and Classifer
+
+        """
+        if model_type =='regressor':
+            model = Ridge()
+
+            # as of now implement random grid for hyper-param tuning
+            param_grid = {
+                'alpha': [0.2, 0.4, 0.6, 1],
+                'solver': ['auto', 'svd', 'cholesky', 'lsqr', 'sparse_cg', 'sag', 'saga', 'lbfgs'],
+                'random_state': [SEED, None]
+                }
+
+            best_model, best_params = self.ht.get_best_model(model, param_grid, x_train, np.ravel(y_train))
+
+        else:
+            model = RidgeClassifier()
+
+            # as of now implement random grid for hyper-param tuning
+            param_grid = {
+                'alpha': [0.2, 0.4, 0.6, 1],
+                'solver': ['auto', 'svd', 'cholesky', 'lsqr', 'sparse_cg', 'sag', 'saga', 'lbfgs'],
+                'random_state': [SEED, None],
+                'class_weight': ['balanced', None]
                 }
 
             best_model, best_params = self.ht.get_best_model(model, param_grid, x_train, np.ravel(y_train))
