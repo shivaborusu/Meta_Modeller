@@ -65,33 +65,50 @@ class PreProcessor:
         #dataset_cat = self.process_encoding(dataset[self.cat_cols])
         #dataset_num = self.process_scaling(dataset[self.num_cols])
 
-        x_train_cat, x_test_cat, x_train_num, x_test_num, y_train, y_test =\
-            train_test_split(dataset_cat, dataset_num, target, random_state=SEED)
+        if dataset_cat:
+            x_train_cat, x_test_cat, x_train_num, x_test_num, y_train, y_test =\
+                train_test_split(dataset_cat, dataset_num, target, random_state=SEED)
 
-        x_train_cat, x_test_cat, x_train_num, x_test_num =\
-            self.process_imputation(x_train_cat, x_test_cat, x_train_num, x_test_num)
+            x_train_cat, x_test_cat, x_train_num, x_test_num =\
+                self.process_imputation(x_train_cat, x_test_cat, x_train_num, x_test_num)
 
-        x_train_num, x_test_num = self.process_num(x_train_num, x_test_num)
-        x_train_cat, x_test_cat = self.process_cat(x_train_cat, x_test_cat, y_train)
+            x_train_num, x_test_num = self.process_num(x_train_num, x_test_num)
+            x_train_cat, x_test_cat = self.process_cat(x_train_cat, x_test_cat, y_train)
 
-        # these lines are inserted here to test KNN imputation strategy on encoded categorical variables
-        # x_train_cat, x_test_cat, x_train_num, x_test_num =\
-        #    self.process_imputation_2(x_train_cat, x_test_cat, x_train_num, x_test_num)
+            # these lines are inserted here to test KNN imputation strategy on encoded categorical variables
+            # x_train_cat, x_test_cat, x_train_num, x_test_num =\
+            #    self.process_imputation_2(x_train_cat, x_test_cat, x_train_num, x_test_num)
 
-        x_train_df, x_test_df =\
-            self.process_merge(x_train_num, x_test_num, x_train_cat, x_test_cat)
+            x_train_df, x_test_df =\
+                self.process_merge(x_train_num, x_test_num, x_train_cat, x_test_cat)
 
+            # assigning original column names
+            cols_list = dataset_num.columns.tolist() + dataset_cat.columns.tolist()
+            x_train_df.columns = cols_list
+            x_test_df.columns = cols_list
 
-        # assigning original column names
-        num_cat_cols = dataset_num.columns.tolist() + dataset_cat.columns.tolist()
-        x_train_df.columns = num_cat_cols
-        x_test_df.columns = num_cat_cols
+        else:
+            print("No Category Columns, only numerical processing will run...")
+            x_train, x_test, y_train, y_test =\
+                train_test_split(dataset_num, target, random_state=SEED)
 
+            x_train, x_test =\
+                self.process_imputation_num(x_train, x_test)
+
+            x_train, x_test= self.process_num(x_train, x_test)
+
+            x_train_df, x_test_df =\
+                self.process_merge(x_train, x_test)
+
+            cols_list = dataset_num.columns.tolist()
+            x_train_df.columns = cols_list
+            x_test_df.columns = cols_list
+        
         # saving x_test_df to verify it in flask UI
         x_train_df.to_csv(MODEL_PICKLE_PATH + "pp_train_df.csv", index=False, header=True)
         x_test_df.to_csv(MODEL_PICKLE_PATH + "pp_test_df.csv", index=False, header=True)
 
-        return x_train_df, x_test_df, y_train, y_test, num_cat_cols
+        return x_train_df, x_test_df, y_train, y_test, cols_list
 
 
     def process_trivial_cleanup(self, dataset):
@@ -116,30 +133,31 @@ class PreProcessor:
         """
         Responsible for separating numerical and categorical columns.
         """
-        cat_cols = dataset.select_dtypes(include='object').columns
-        num_cols = dataset.select_dtypes(exclude='object').columns
-        dataset_cat = dataset[cat_cols]
-        dataset_num = dataset[num_cols]
+        cat_cols = dataset.select_dtypes(include='object').columns.tolist()
+        num_cols = dataset.select_dtypes(exclude='object').columns.tolist()
+        
+        # if there are no categorical variables
+        if not cat_cols:
+            return None, dataset[num_cols]
+        else:
+            dataset_cat = dataset[cat_cols]
+            dataset_num = dataset[num_cols]
 
         return dataset_cat, dataset_num
 
 
-    def process_imputation_simple(self, x_train_cat, x_test_cat, x_train_num, x_test_num):
+    def process_imputation_num(self, x_train_num, x_test_num):
         """
         Responsible for handling missing values. This can handle
         both numerical and categorical columns
         """
 
-        imputer_cat = SimpleImputer(strategy='constant', fill_value='NA')
-        imputer_num = SimpleImputer(strategy='median')
-
-        x_train_cat = imputer_cat.fit_transform(x_train_cat)
-        x_test_cat = imputer_cat.transform(x_test_cat)
+        imputer_num = KNNImputer()
 
         x_train_num = imputer_num.fit_transform(x_train_num)
         x_test_num = imputer_num.transform(x_test_num)
 
-        return x_train_cat, x_test_cat, x_train_num, x_test_num
+        return x_train_num, x_test_num
 
 
     def process_imputation(self, x_train_cat, x_test_cat, x_train_num, x_test_num):
@@ -208,14 +226,19 @@ class PreProcessor:
 
         return x_train_cat, x_test_cat
 
-    def process_merge(self, x_train_num, x_test_num, x_train_cat, x_test_cat):
+    def process_merge(self, x_train_num, x_test_num, x_train_cat=None, x_test_cat=None):
         """
         Responsible for stitching the processed numerical and categorical
         features together
         """
-        # combining categorical and numerical features in train, test
-        x_train = np.hstack([x_train_cat, x_train_num])
-        x_test = np.hstack([x_test_cat, x_test_num])
+
+        if x_train_cat:
+            # combining categorical and numerical features in train, test
+            x_train = np.hstack([x_train_cat, x_train_num])
+            x_test = np.hstack([x_test_cat, x_test_num])
+        else:
+            x_train = x_train_num
+            x_test = x_test_num
 
         # writing to CSV and reloading from CSV is performed 
         # because numpy columns are read as all 'object' type
@@ -228,10 +251,12 @@ class PreProcessor:
         x_test_df.to_csv(DATA_SET_PATH + "regression/car_prices/x_test_df.csv", index=False)
         x_test_df = pd.read_csv(DATA_SET_PATH + "regression/car_prices/x_test_df.csv")
 
+
         # this step is needed because 'object' is not recorgnized by LGBM
-        cat_cols = x_train_df.select_dtypes(include='object').columns
-        for col in cat_cols:
-            x_train_df[col] = x_train_df[col].astype('category')
-            x_test_df[col] = x_test_df[col].astype('category')
+        if x_train_cat:
+            cat_cols = x_train_df.select_dtypes(include='object').columns
+            for col in cat_cols:
+                x_train_df[col] = x_train_df[col].astype('category')
+                x_test_df[col] = x_test_df[col].astype('category')
 
         return x_train_df, x_test_df

@@ -74,8 +74,54 @@ space_reg = hp.choice('regressors', [
     # },
     ])
 
-
-space_clf = {}
+# classifier grid definition is still pending
+space_clf = hp.choice('classifiers', [
+    {
+        'model': LGBMClassifier(random_state=SEED),
+        'params': {
+            'num_leaves': hp.choice('num_leaves', [7, 14, 21, 28, 31, 50]),
+            'learning_rate': hp.choice('learning_rate', [0.1, 0.03, 0.003]),
+            'max_depth': hp.choice('max_depth', [-1, 3, 5]),
+            'n_estimators': hp.choice('n_estimators', [50, 100, 200, 500]),
+            'boosting_type': hp.choice('boosting_type', ['gbdt', 'dart']),
+            'class_weight': hp.choice('class_weight', ['balanced', None]),
+        },
+        'metric' : "f1"
+    },
+    {
+        'model': KNeighborsClassifier(),
+        'params': {
+            'n_neighbors': hp.choice('n_neighbors', [3, 5, 8]),
+            'weights': hp.choice('weights', ['uniform', 'distance']),
+            'algorithm': hp.choice('algorithm', ['auto', 'ball_tree', 'kd_tree', 'brute']),
+            'leaf_size': hp.choice('leaf_size', [20,30,40,50])
+        },
+        'metric' : "f1"
+    },
+    {
+        'model': LogisticRegression(),
+        'params': {''},
+        'metric' : "f1"
+    },
+    {
+        'model': SVR(),
+        'params': {
+            'kernel': hp.choice('kernel', ['linear', 'poly', 'rbf', 'sigmoid']),
+            'degree': hp.choice('degree', [2,3,4]),
+            'C': hp.choice('C', [1, 2])
+        },
+        'metric': "r2"
+    },
+    {
+        'model': Ridge(),
+        'params': {
+            'alpha': hp.choice('alpha', [0.2, 0.4, 0.6, 1]),
+            'solver': hp.choice('solver', ['auto', 'svd', 'cholesky', 'lsqr', 'sparse_cg', 'sag', 'saga', 'lbfgs']),
+            'random_state': hp.choice('random_state', [SEED, None])
+        },
+        'metric': "r2"
+    }
+])
 
 def hyperparameter_tuning(space):
     x_train = pd.read_csv(MODEL_PICKLE_PATH + "model_train_x_df.csv", header='infer')

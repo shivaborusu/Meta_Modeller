@@ -4,7 +4,7 @@ from sklearn.linear_model import LinearRegression, LogisticRegression, Ridge, Ri
 from sklearn.neighbors import KNeighborsClassifier, KNeighborsRegressor
 from sklearn.svm import SVC, SVR
 from sklearn.feature_selection import SelectFromModel, RFECV
-from sklearn.metrics import mean_squared_error, r2_score
+from sklearn.metrics import mean_squared_error, r2_score, f1_score
 import pandas as pd
 import numpy as np
 from config import SEED, MODEL_PICKLE_PATH
@@ -166,7 +166,7 @@ class Modeller:
                 'n_neighbors': [3, 5, 8],
                 'weights': ['uniform', 'distance'],
                 'algorithm': ['auto', 'ball_tree', 'kd_tree', 'brute'],
-                'leaf_sizeint': [20,30,40,50]
+                'leaf_size': [20,30,40,50]
                 }
 
             best_model, best_params = self.ht.get_best_model(model, param_grid, x_train, np.ravel(y_train))
@@ -188,12 +188,11 @@ class Modeller:
             best_model, best_params = self.ht.get_best_model(model, param_grid, x_train, np.ravel(y_train))
 
         else:
-            model = LogisticRegression()
+            model = LogisticRegression(random_state=SEED)
             param_grid = {
-                'n_neighbors': [3, 5, 8],
-                'weights': ['uniform', 'distance'],
-                'algorithm': ['auto', 'ball_tree', 'kd_tree', 'brute'],
-                'leaf_sizeint': [20,30,40,50]
+                'C': [0.2, 0.4, 0.6, 1],
+                'class_weight': ['balanced', None],
+                'solver': ['newton-cg', 'lbfgs', 'liblinear']
                 }
 
             best_model, best_params = self.ht.get_best_model(model, param_grid, x_train, np.ravel(y_train))
@@ -311,6 +310,14 @@ class Modeller:
             for idx, model in enumerate(mod_list):
                 preds = model.predict(self.x_test)
                 score = r2_score(self.y_test, preds)
+                metrics.update({"model_"+str(idx+1):{model:score}})
+                with open(MODEL_PICKLE_PATH + "model_"+str(idx+1)+".pkl", "wb") as handle:
+                    pkl.dump(model, handle)
+        else:
+            for idx, model in enumerate(mod_list):
+                preds = model.predict(self.x_test)
+                pos_label = preds.tolist()[1]
+                score = f1_score(self.y_test, preds, pos_label=pos_label)
                 metrics.update({"model_"+str(idx+1):{model:score}})
                 with open(MODEL_PICKLE_PATH + "model_"+str(idx+1)+".pkl", "wb") as handle:
                     pkl.dump(model, handle)
