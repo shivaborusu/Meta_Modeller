@@ -319,8 +319,13 @@ class Modeller:
         else:
             for idx, model in enumerate(mod_list):
                 preds = model.predict(self.x_test)
-                pos_label = preds.tolist()[1]
-                score = f1_score(self.y_test, preds, pos_label=pos_label)
+                if len(preds.tolist()) == 2:
+                    pos_label = preds.tolist()[1]
+                    average = 'binary'
+                else:
+                    average = 'weighted'
+                    pos_label = None
+                score = f1_score(self.y_test, preds, pos_label=pos_label, average=average)
                 accuracy = accuracy_score(self.y_test, preds)
                 metrics.update({"model_"+str(idx+1):{'f1_score':score, 'accuracy': accuracy}})
                 with open(os.path.join(MODEL_PICKLE_PATH, "Classification", "model_"+str(idx+1)+".pkl"), "wb") as handle:

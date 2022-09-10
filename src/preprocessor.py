@@ -3,7 +3,7 @@ import numpy as np
 from config import SEED, DATA_SET_PATH, MODEL_PICKLE_PATH
 from sklearn.model_selection import train_test_split
 from sklearn.impute import SimpleImputer, KNNImputer
-from sklearn.preprocessing import PowerTransformer
+from sklearn.preprocessing import PowerTransformer, LabelEncoder
 import category_encoders as ce
 
 
@@ -226,13 +226,13 @@ class PreProcessor:
 
         return x_train_cat, x_test_cat
 
-    def process_merge(self, x_train_num, x_test_num, x_train_cat=None, x_test_cat=None):
+    def process_merge(self, x_train_num, x_test_num, x_train_cat=pd.DataFrame(), x_test_cat=pd.DataFrame()):
         """
         Responsible for stitching the processed numerical and categorical
         features together
         """
 
-        if x_train_cat:
+        if not x_train_cat.empty:
             # combining categorical and numerical features in train, test
             x_train = np.hstack([x_train_cat, x_train_num])
             x_test = np.hstack([x_test_cat, x_test_num])
@@ -253,7 +253,7 @@ class PreProcessor:
 
 
         # this step is needed because 'object' is not recorgnized by LGBM
-        if x_train_cat:
+        if not x_train_cat.empty:
             cat_cols = x_train_df.select_dtypes(include='object').columns
             for col in cat_cols:
                 x_train_df[col] = x_train_df[col].astype('category')
