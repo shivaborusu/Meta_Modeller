@@ -3,8 +3,9 @@ from flasgger import Swagger
 from werkzeug.utils import secure_filename
 import pickle as pkl
 import pandas as pd
-import sys
+import os
 from config import MODEL_PICKLE_PATH
+import config
 
 app = Flask(__name__)
 Swagger(app)
@@ -22,8 +23,14 @@ def predict():
         in: formData
         type: file
         required: true
+      - name: model_type
+        in: formData
+        enum: ['Regresson', 'Classification']
+        type: string
+        required: true
       - name: model_name
         in: formData
+        enum: ['model_1', 'model_2', 'model_3', 'model_4', 'model_5', model_6']
         type: string
         required: true
     
@@ -42,11 +49,18 @@ def predict():
 
     file = request.files["file_name"]
     model = request.form.get("model_name")
+    model_type = request.form.get("model_type")
+
+    if model_type == 'Regresson':
+      MODEL_PICKLE_PATH = os.path.join(config.MODEL_PICKLE_PATH, "Regresson")
+    else:
+      MODEL_PICKLE_PATH = os.path.join(config.MODEL_PICKLE_PATH, "Classification")
+
     file.save(secure_filename(file.filename))
     data = pd.read_csv(file.filename, header=0)
 
     try:
-        with open(MODEL_PICKLE_PATH + model + ".pkl", "rb") as model_file:
+        with open(os.path.join(MODEL_PICKLE_PATH, model + ".pkl"), "rb") as model_file:
             model = pkl.load(model_file)
     except FileNotFoundError:
         response = make_response("SPECIFIED MODEL PICKLE NOT FOUND!!!", 400)
@@ -54,7 +68,7 @@ def predict():
 
     model_prediction = model.predict(data)
 
-    output_file_name = MODEL_PICKLE_PATH + "model_prediction.csv"
+    output_file_name = os.path.join(MODEL_PICKLE_PATH, "model_prediction.csv")
     preds = pd.DataFrame(model_prediction, columns=['target'])
     output = pd.concat([data, preds], axis=1)
     output.to_csv(output_file_name, index=False, header=True)

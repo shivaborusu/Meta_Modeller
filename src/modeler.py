@@ -4,12 +4,14 @@ from sklearn.linear_model import LinearRegression, LogisticRegression, Ridge, Ri
 from sklearn.neighbors import KNeighborsClassifier, KNeighborsRegressor
 from sklearn.svm import SVC, SVR
 from sklearn.feature_selection import SelectFromModel, RFECV
-from sklearn.metrics import mean_squared_error, r2_score, f1_score
+from sklearn import metrics as met
+from sklearn.metrics import mean_squared_error, f1_score, accuracy_score
 import pandas as pd
 import numpy as np
 from config import SEED, MODEL_PICKLE_PATH
 from hyper_tuner import HyperTuner
 import pickle as pkl
+import os
 import logging
 
 class Modeller:
@@ -53,9 +55,9 @@ class Modeller:
 
         # save x_train, x_test here , saving x_test_df to verify it in flask UI
         # The same datatsets can also be used to train hyperopt
-        x_train.to_csv(MODEL_PICKLE_PATH + "model_train_x_df.csv", index=False, header=True)
-        y_train.to_csv(MODEL_PICKLE_PATH + "model_train_y_df.csv", index=False, header=True)
-        self.x_test.to_csv(MODEL_PICKLE_PATH + "model_test_x_df.csv", index=False, header=True)
+        x_train.to_csv(MODEL_PICKLE_PATH + "Test_Files/" + "model_train_x_df.csv", index=False, header=True)
+        y_train.to_csv(MODEL_PICKLE_PATH + "Test_Files/" + "model_train_y_df.csv", index=False, header=True)
+        self.x_test.to_csv(MODEL_PICKLE_PATH + "Test_Files/" + "model_test_x_df.csv", index=False, header=True)
 
 
         #build model 1 - LGBM
@@ -309,17 +311,19 @@ class Modeller:
         if self.model_type =='regressor':
             for idx, model in enumerate(mod_list):
                 preds = model.predict(self.x_test)
-                score = r2_score(self.y_test, preds)
-                metrics.update({"model_"+str(idx+1):{model:score}})
-                with open(MODEL_PICKLE_PATH + "model_"+str(idx+1)+".pkl", "wb") as handle:
+                r2_score = met.r2_score(self.y_test, preds)
+                error = mean_squared_error(self.y_test, preds)
+                metrics.update({"model_"+str(idx+1):{'r2_score':r2_score, 'MSE':error}})
+                with open(os.path.join(MODEL_PICKLE_PATH, "Regresson", "model_"+str(idx+1)+".pkl"), "wb") as handle:
                     pkl.dump(model, handle)
         else:
             for idx, model in enumerate(mod_list):
                 preds = model.predict(self.x_test)
                 pos_label = preds.tolist()[1]
                 score = f1_score(self.y_test, preds, pos_label=pos_label)
-                metrics.update({"model_"+str(idx+1):{model:score}})
-                with open(MODEL_PICKLE_PATH + "model_"+str(idx+1)+".pkl", "wb") as handle:
+                accuracy = accuracy_score(self.y_test, preds)
+                metrics.update({"model_"+str(idx+1):{'f1_score':score, 'accuracy': accuracy}})
+                with open(os.path.join(MODEL_PICKLE_PATH, "Classification", "model_"+str(idx+1)+".pkl"), "wb") as handle:
                     pkl.dump(model, handle)
             
         return metrics

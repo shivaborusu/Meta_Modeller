@@ -65,7 +65,7 @@ class PreProcessor:
         #dataset_cat = self.process_encoding(dataset[self.cat_cols])
         #dataset_num = self.process_scaling(dataset[self.num_cols])
 
-        if dataset_cat:
+        if not dataset_cat.empty:
             x_train_cat, x_test_cat, x_train_num, x_test_num, y_train, y_test =\
                 train_test_split(dataset_cat, dataset_num, target, random_state=SEED)
 
@@ -105,8 +105,8 @@ class PreProcessor:
             x_test_df.columns = cols_list
         
         # saving x_test_df to verify it in flask UI
-        x_train_df.to_csv(MODEL_PICKLE_PATH + "pp_train_df.csv", index=False, header=True)
-        x_test_df.to_csv(MODEL_PICKLE_PATH + "pp_test_df.csv", index=False, header=True)
+        x_train_df.to_csv(MODEL_PICKLE_PATH + "Test_Files/" + "pp_train_df.csv", index=False, header=True)
+        x_test_df.to_csv(MODEL_PICKLE_PATH + "Test_Files/" + "pp_test_df.csv", index=False, header=True)
 
         return x_train_df, x_test_df, y_train, y_test, cols_list
 
@@ -138,7 +138,7 @@ class PreProcessor:
         
         # if there are no categorical variables
         if not cat_cols:
-            return None, dataset[num_cols]
+            return pd.DataFrame(), dataset[num_cols]
         else:
             dataset_cat = dataset[cat_cols]
             dataset_num = dataset[num_cols]
