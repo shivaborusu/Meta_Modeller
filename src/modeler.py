@@ -48,7 +48,8 @@ class Modeller:
         if self.feature_select:
             selected_feat_list = self.get_important_features(self.x_train, self.y_train, self.model_type)
 
-            print("Selected Features: ",selected_feat_list)
+            print("Selected Features: ",selected_feat_list, end='\n')
+            print("")
 
             x_train = x_train[selected_feat_list]
             self.x_test = self.x_test[selected_feat_list]
@@ -89,6 +90,7 @@ class Modeller:
         to reduce dimensionality. This is optional
         """
         print("Feature Selection is Running.....")
+        print("")
 
         if model_type =='regressor':
             model = RandomForestRegressor(random_state=SEED)

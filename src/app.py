@@ -30,7 +30,7 @@ def predict():
         required: true
       - name: model_name
         in: formData
-        enum: ['model_1', 'model_2', 'model_3', 'model_4', 'model_5', model_6']
+        enum: ['model_1', 'model_2', 'model_3', 'model_4', 'model_5', 'model_6']
         type: string
         required: true
     

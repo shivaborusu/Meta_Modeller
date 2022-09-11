@@ -14,7 +14,8 @@ class HyperTuner:
         
         self.count+=1
         print(f"Best Model for Model ID {str(self.count)}:   ", search.best_estimator_)
-        print(f"Best Params for Model ID {str(self.count)}:   ", search.best_params_)
+        print(f"Best Params for Model ID {str(self.count)}:   ", search.best_params_, end='\n')
+        print("")
 
         return search.best_estimator_, search.best_params_
 
